@@ -107,19 +107,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 Created by \[Your Name] - feel free to reach out!
 
 ---
-
-```
-
----
-
-### 额外建议
-
-- README 放根目录；
-- 搭配 `.gitignore` 忽略临时文件和锁文件；
-- 可加 `LICENSE` 文件（MIT 推荐）；
-- 项目初期写清楚使用说明和依赖，方便别人参与。
-
----
-
-如果你需要我帮你生成对应的 `LICENSE` 文件或者写更详细的开发文档，也可以告诉我！
-```
