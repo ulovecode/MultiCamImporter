@@ -1,0 +1,38 @@
+<job>
+<script language="VBScript">
+Dim objWMIService, colProcessList, objProcess
+Dim strComputer, strProcessName, strCommandLine
+
+strComputer = "." ' 本地计算机
+strProcessName = "python.exe" ' 要查找的进程名
+strScriptName = "media_auto_import.py" ' 你的 Python 脚本名
+
+Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+
+' 查找指定进程
+Set colProcessList = objWMIService.ExecQuery("SELECT * FROM Win32_Process WHERE Name='" & strProcessName & "'")
+
+If Not colProcessList Is Nothing Then
+    For Each objProcess In colProcessList
+        ' 获取进程的命令行参数，并检查是否包含目标脚本路径
+        strCommandLine = objProcess.CommandLine
+        If InStr(1, strCommandLine, strScriptName, vbTextCompare) > 0 Then
+            ' 找到匹配的进程，先终止它
+            objProcess.Terminate
+            Exit For ' 退出循环，因为我们已经终止了一个进程
+        End If
+    Next
+End If
+
+' 启动新的进程
+Dim WshShell
+Set WshShell = WScript.CreateObject("WScript.Shell")
+Call WshShell.Run("C:\Python312\python.exe D:\code\MultiCamImporter\media_auto_import.py", 0, False)
+
+Set WshShell = Nothing
+Set objWMIService = Nothing
+Set colProcessList = Nothing
+Set objProcess = Nothing
+
+</script>
+</job>
