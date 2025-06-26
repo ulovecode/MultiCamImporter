@@ -20,7 +20,7 @@ PHOTO_DIR = r'Z:\\media\\photo'
 VIDEO_DIR = r'Z:\\media\\video'
 LOCK_FILE = os.path.join(tempfile.gettempdir(), 'media_import.lock')
 LOCK_TIMEOUT = 10 * 60  # 超过10分钟自动清理锁
-SCAN_INTERVAL = 1  # 每次间隔秒数
+SCAN_INTERVAL = 60  # 每次间隔秒数
 DELETE_ORIGINAL = True
 MIN_FILE_SIZE = 1 * 1024 * 1024  # 1MB in bytes
 
