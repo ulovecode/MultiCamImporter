@@ -206,7 +206,6 @@ def release_lock():
         os.remove(LOCK_FILE)
 
 
-release_lock()
 # ======= 主任务函数 =======
 known_drives = set()
 
