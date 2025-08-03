@@ -27,7 +27,7 @@ MIN_FILE_SIZE = int(config["Settings"]["min_file_size"])
 PHOTO_EXTS = config["FileExtensions"]["photo_exts"].split(",")
 VIDEO_EXTS = config["FileExtensions"]["video_exts"].split(",")
 FOLDER_BRAND_HINTS = dict(config["FolderBrandHints"])
-LOCK_FILE = os.path.join(tempfile.gettempdir(), 'media_import.lock')
+LOCK_FILE = os.path.join(tempfile.gettempdir(), "media_import.lock")
 
 # ======= 工具函数 =======
 
