@@ -1,56 +1,47 @@
-import ctypes
-import os
-import platform
-import time
-import shutil
-import psutil
-import subprocess
-import schedule
-from datetime import datetime
-from PIL import Image, ExifTags
-import tempfile
-from tqdm import tqdm
-import win32api
-import win32file
-import win32con
-import ctypes
-
 # ======= 配置区域 =======
-PHOTO_DIR = r'Z:\\media\\photo'
-VIDEO_DIR = r'Z:\\media\\video'
+import configparser
+import os
+import shutil
+import tempfile
+import time
+from datetime import datetime
+
+import psutil
+import schedule
+import win32con
+import win32file
+from PIL import ExifTags, Image
+from tqdm import tqdm
+
+# Load configuration
+config = configparser.ConfigParser()
+config.read("config.ini")
+
+# Configuration variables
+PHOTO_DIR = config["Paths"]["photo_dir"]
+VIDEO_DIR = config["Paths"]["video_dir"]
+LOCK_TIMEOUT = int(config["Settings"]["lock_timeout"])
+SCAN_INTERVAL = int(config["Settings"]["scan_interval"])
+DELETE_ORIGINAL = config["Settings"].getboolean("delete_original")
+MIN_FILE_SIZE = int(config["Settings"]["min_file_size"])
+PHOTO_EXTS = config["FileExtensions"]["photo_exts"].split(",")
+VIDEO_EXTS = config["FileExtensions"]["video_exts"].split(",")
+FOLDER_BRAND_HINTS = dict(config["FolderBrandHints"])
 LOCK_FILE = os.path.join(tempfile.gettempdir(), 'media_import.lock')
-LOCK_TIMEOUT = 10 * 60  # 超过10分钟自动清理锁
-SCAN_INTERVAL = 60  # 每次间隔秒数
-DELETE_ORIGINAL = True
-MIN_FILE_SIZE = 1 * 1024 * 1024  # 1MB in bytes
-
-PHOTO_EXTS = ['.jpg', '.jpeg', '.png', '.cr2', '.nef', '.arw', '.dng']
-VIDEO_EXTS = ['.mp4', '.mov', '.avi', '.mkv', '.m4v']
-
-FOLDER_BRAND_HINTS = {
-    'DCIM': 'DJI',
-    'AVCHD': 'Sony',
-    'PRIVATE': 'Sony',
-    'MP_ROOT': 'Sony',
-    'CANON': 'Canon',
-    'FUJI': 'Fujifilm',
-    'GOPRO': 'GoPro',
-    'DJI': 'DJI'
-}
 
 # ======= 工具函数 =======
 
 
-def is_photo(file): return any(file.lower().endswith(ext)
-                               for ext in PHOTO_EXTS)
+def is_photo(file):
+    return any(file.lower().endswith(ext) for ext in PHOTO_EXTS)
 
 
-def is_video(file): return any(file.lower().endswith(ext)
-                               for ext in VIDEO_EXTS)
+def is_video(file):
+    return any(file.lower().endswith(ext) for ext in VIDEO_EXTS)
 
 
 def get_removable_drives():
-    return [p.device for p in psutil.disk_partitions() if 'removable' in p.opts]
+    return [p.device for p in psutil.disk_partitions() if "removable" in p.opts]
 
 
 def get_exif_info(photo_path):
@@ -59,12 +50,11 @@ def get_exif_info(photo_path):
         exif_data = image._getexif()
         if not exif_data:
             return None, None
-        exif = {ExifTags.TAGS.get(k): v for k,
-                v in exif_data.items() if k in ExifTags.TAGS}
-        make = exif.get('Make', 'Unknown').strip().capitalize()
-        date_str = exif.get('DateTimeOriginal') or exif.get('DateTime')
+        exif = {ExifTags.TAGS.get(k): v for k, v in exif_data.items() if k in ExifTags.TAGS}
+        make = exif.get("Make", "Unknown").strip().capitalize()
+        date_str = exif.get("DateTimeOriginal") or exif.get("DateTime")
         if date_str:
-            date = datetime.strptime(date_str, '%Y:%m:%d %H:%M:%S').date()
+            date = datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S").date()
             return make, str(date)
         return make, None
     except Exception as e:
@@ -82,16 +72,15 @@ def guess_brand_by_path(path):
 def get_file_date(path):
     try:
         t = os.path.getmtime(path)
-        return datetime.fromtimestamp(t).strftime('%Y-%m-%d')
+        return datetime.fromtimestamp(t).strftime("%Y-%m-%d")
     except Exception:
-        return datetime.today().strftime('%Y-%m-%d')
+        return datetime.today().strftime("%Y-%m-%d")
 
 
 def copy_files(drive):
     copied = []
     # 收集所有需要处理的文件
-    files = [(root, f) for root, _, fs in os.walk(drive)
-             for f in fs if is_photo(f) or is_video(f)]
+    files = [(root, f) for root, _, fs in os.walk(drive) for f in fs if is_photo(f) or is_video(f)]
 
     # 使用tqdm显示进度条
     for root, file in tqdm(files, desc=f"Copying from {drive}", unit="file"):
@@ -104,7 +93,7 @@ def copy_files(drive):
         if is_photo(file):
             make, date = get_exif_info(src)
             if not make:
-                make = 'Unknown'
+                make = "Unknown"
             if not date:
                 date = get_file_date(src)
             dest_dir = os.path.join(PHOTO_DIR, make, date)
@@ -119,10 +108,10 @@ def copy_files(drive):
         dest_path = os.path.join(dest_dir, file)
         try:
             shutil.copy2(src, dest_path)
-            print(f'[Copied] {src} -> {dest_path}')
+            print(f"[Copied] {src} -> {dest_path}")
             copied.append(src)
         except Exception as e:
-            print(f'[Error] Copy failed: {e}')
+            print(f"[Error] Copy failed: {e}")
     return copied
 
 
@@ -130,18 +119,14 @@ def delete_files(file_list):
     for f in file_list:
         try:
             os.remove(f)
-            print(f'[Deleted] {f}')
+            print(f"[Deleted] {f}")
         except Exception as e:
-            print(f'[Error] Delete failed: {e}')
-
-            import os
-
-            import os
+            print(f"[Error] Delete failed: {e}")
 
 
 def eject_disk(drive_letter):
     # 驱动器字母应以 : 结尾
-    if not drive_letter.endswith('\\\\'):
+    if not drive_letter.endswith("\\\\"):
         drive_letter = drive_letter[:-1]
 
     # 检查驱动器是否存在
@@ -152,21 +137,18 @@ def eject_disk(drive_letter):
     try:
         # 获取驱动器的句柄
         drive_handle = win32file.CreateFile(
-            f'\\\\.\\{drive_letter}',
+            f"\\\\.\\{drive_letter}",
             win32con.GENERIC_READ | win32con.GENERIC_WRITE,
             win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE,
             None,
             win32con.OPEN_EXISTING,
             0,
-            None
+            None,
         )
 
         # 使用 DeviceIoControl 发送弹出请求，调用 Eject
         result = win32file.DeviceIoControl(
-            drive_handle,
-            0x2D4808,  # IOCTL_STORAGE_EJECT_MEDIA
-            None,
-            0
+            drive_handle, 0x2D4808, None, 0  # IOCTL_STORAGE_EJECT_MEDIA
         )
 
         # 关闭驱动器句柄
@@ -191,12 +173,12 @@ def is_lock_stale():
 def acquire_lock():
     if os.path.exists(LOCK_FILE):
         if is_lock_stale():
-            print(f"[Lock] Removing stale lock file.")
+            print("[Lock] Removing stale lock file.")
             os.remove(LOCK_FILE)
         else:
-            print(f"[Lock] Task already running. Skipping.")
+            print("[Lock] Task already running. Skipping.")
             return False
-    with open(LOCK_FILE, 'w') as f:
+    with open(LOCK_FILE, "w") as f:
         f.write(str(os.getpid()))
     return True
 
@@ -220,7 +202,7 @@ def check_and_process():
         known_drives = current_drives
 
         for drive in new_drives:
-            print(f'[Detected] New drive: {drive}')
+            print(f"[Detected] New drive: {drive}")
             copied = copy_files(drive)
             if copied and DELETE_ORIGINAL:
                 delete_files(copied)
@@ -228,6 +210,7 @@ def check_and_process():
             eject_disk(drive)
     finally:
         release_lock()
+
 
 # ======= 主程序入口 =======
 
@@ -243,5 +226,5 @@ def main_loop():
         time.sleep(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_loop()
